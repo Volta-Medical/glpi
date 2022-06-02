@@ -139,7 +139,7 @@ abstract class CommonITILSatisfaction extends CommonDBTM
 
             // Set default satisfaction to 3 if not set
             if (is_null($this->fields["satisfaction"])) {
-                $default_rate = Entity::getUsedConfig('inquest_config', $ticket->fields['entities_id'], 'inquest_default_rate');
+                $default_rate = Entity::getUsedConfig('inquest_config', $item->fields['entities_id'], 'inquest_default_rate');
                 $this->fields["satisfaction"] = $default_rate;
             }
             echo "<tr class='tab_bg_2'>";
@@ -149,7 +149,7 @@ abstract class CommonITILSatisfaction extends CommonDBTM
 
             echo "<select id='satisfaction_data' name='satisfaction'>";
 
-            $max_rate = Entity::getUsedConfig('inquest_config', $ticket->fields['entities_id'], 'inquest_max_rate');
+            $max_rate = Entity::getUsedConfig('inquest_config', $item->fields['entities_id'], 'inquest_max_rate');
             for ($i = 0; $i <= $max_rate; $i++) {
                 echo "<option value='$i' " . (($i == $this->fields["satisfaction"]) ? 'selected' : '') .
                     ">$i</option>";
@@ -188,18 +188,26 @@ abstract class CommonITILSatisfaction extends CommonDBTM
 
     public function prepareInputForUpdate($input)
     {
-        if ($input['satisfaction'] >= 0) {
-            $input["date_answered"] = $_SESSION["glpi_currenttime"];
+        if (array_key_exists('satisfaction', $input)) {
+            if ($input['satisfaction'] >= 0) {
+                $input["date_answered"] = $_SESSION["glpi_currenttime"];
+            }
         }
 
-        $inquest_mandatory_comment = Entity::getUsedConfig('inquest_config', $input['entities_id'], 'inquest_mandatory_comment');
-        if ($inquest_mandatory_comment && ($input['satisfaction'] >= $inquest_mandatory_comment) && empty($input['comment'])) {
-            Session::addMessageAfterRedirect(
-                sprintf(__('Comment is required if score is less than or equal to %d'), $inquest_mandatory_comment),
-                false,
-                ERROR
-            );
-            return false;
+        if (array_key_exists('satisfaction', $input) || array_key_exists('comment', $input)) {
+            $satisfaction = $input['satisfaction'] ?? $this->fields['satisfaction'];
+            $comment      = $input['comment'] ?? $this->fields['comment'];
+            $entities_id  = $this->getItemEntity($this->getItemtype(), $this->fields[getForeignKeyFieldForItemType($this->getItemtype())]);
+
+            $inquest_mandatory_comment = Entity::getUsedConfig('inquest_config', $entities_id, 'inquest_mandatory_comment');
+            if ($inquest_mandatory_comment && ($satisfaction >= $inquest_mandatory_comment) && empty($comment)) {
+                Session::addMessageAfterRedirect(
+                    sprintf(__('Comment is required if score is less than or equal to %d'), $inquest_mandatory_comment),
+                    false,
+                    ERROR
+                );
+                return false;
+            }
         }
 
         return $input;
